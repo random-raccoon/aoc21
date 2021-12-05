@@ -21,6 +21,31 @@ class Line:
     def __repr__(self):
         return f'{self.p1} -> {self.p2}'
 
+    def __iter__(self):
+        return LineIterator(self)
+
+class LineIterator:
+    def __init__(self, line: Line):
+        self.length = 0
+        self.x = line.p1.x
+        self.y = line.p1.y
+        self.dx = 0
+        if line.p1.x != line.p2.x:
+            self.dx = (line.p2.x - line.p1.x) // abs(line.p2.x - line.p1.x)
+            self.length = abs(line.p2.x - line.p1.x) + 1
+        self.dy = 0
+        if line.p1.y != line.p2.y:
+            self.dy = (line.p2.y - line.p1.y) // abs(line.p2.y - line.p1.y)
+            self.length = abs(line.p2.y - line.p1.y) + 1
+        self.index = 0
+
+    def __next__(self) -> list[int]:
+        if (self.index < self.length):
+            x = self.x + self.index * self.dx
+            y = self.y + self.index * self.dy
+            self.index += 1
+            return [x,y]
+        raise StopIteration
 
 class Grid:
     def __init__(self, width: int, height: int):
@@ -29,21 +54,8 @@ class Grid:
         self.data = [0] * width * height
 
     def addLine(self, line: Line):
-        if line.isVertical():
-            x = line.p1.x
-            for y in range(min(line.p1.y, line.p2.y), max(line.p1.y, line.p2.y) + 1):
-                self.data[x + y * self.width] += 1
-        elif line.isHorizontal():
-            y = line.p1.y
-            for x in range(min(line.p1.x, line.p2.x), max(line.p1.x, line.p2.x) + 1):
-                self.data[x + y * self.width] += 1
-        else:
-            dx = (line.p2.x - line.p1.x) // abs(line.p2.x - line.p1.x)
-            dy = (line.p2.y - line.p1.y) // abs(line.p2.y - line.p1.y)
-            y = line.p1.y
-            for x in range(line.p1.x, line.p2.x + 1, dx):
-                self.data[x + y * self.width] += 1
-                y += dy
+        for [x, y] in line:
+            self.data[x + y * self.width] += 1
 
     def countOverlaps(self) -> int:
         count = 0
