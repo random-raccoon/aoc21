@@ -13,10 +13,9 @@ class CaveNetwork:
             self.caves[cave] = set()
 
     def count_paths(self) -> int:
-        return self.__explore([], 'start')
+        return self.__explore([], 'start', False)
 
-    def __explore(self, path: list[str], next_cave: str) -> int:
-        path.append(next_cave)
+    def __explore(self, path: list[str], next_cave: str, has_second_visit: bool) -> int:
         count = 0
         for cave in self.caves[next_cave]:
             if cave == 'end':
@@ -27,15 +26,16 @@ class CaveNetwork:
             elif cave == 'start':
                 # no leaving the cave.
                 continue
-            elif cave.islower() and path.count(cave) == 2:
-                # can't visit a small cave more than twice
-                # NOPE.  Can visit ONE small cave twice.  Revisit this later.
-                continue
+            elif cave.islower() and cave in path:
+                if has_second_visit:
+                    continue
+                else:
+                    count += self.__explore(path.copy(), cave, True)
             else:
-                count += self.__explore(path.copy(), cave)
+                count += self.__explore(path.copy(), cave, has_second_visit)
         return count
 
-with open('day12/testinput.txt', 'r') as f:
+with open('day12/input.txt', 'r') as f:
     network = CaveNetwork()
     for line in f:
         parts = line.strip().split('-')
