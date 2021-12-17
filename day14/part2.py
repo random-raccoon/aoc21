@@ -1,47 +1,65 @@
 import re
 
-# For fun, lets do this as a SLL!
-class Node:
-    def __init__(self, value):
-        self.value = value
-        self.next = None
+# Okay.  SLL is not going to scale.
+# Back of napkin calculations give:
+# start length 20, 2^40 growth factor, ~20 trillion.
+# Just for storage (forget calculations) we are out of memory.
+# SO.  Dynamic programming time.
+
+# Rough thoughts:  Each pair expands into a tree.  Each tree can be summarized with a count.
+# Tree counts need to account for depth.
+# Take (a, b) and rule (a, b) -> c.
+# count((a,b), n) = count((a,c), n-1) + count((c,b), n-1) + {c:-1}.
+# Take (a, b) without any matching rules.
+# count((a, b), n) = {a:1, b:1}
+# And finally:
+# count((a, b), 0) = {a:1, b:1}
+# Map of pairs of elements to the new element that will get injected between them.
+rules = {}
+
+# Map of (element1, element2, depth) tuples to their {element:count} maps.
+cache = {}
+
+# Merges count2's values into count1.
+def merge(count1, count2):
+    for key, value in count2.items():
+        count1[key] = count1.get(key, 0) + value
+
+# Calculates the {element:count} map for a tree starting at (element1,element2) going to a depth of depth.
+def calculate(element1, element2, depth):
+    if ((element1, element2, depth)) in cache:
+        return cache[(element1, element2, depth)]
+
+    if depth == 0 or (element1, element2) not in rules:
+        retval = {element1: 1}
+        merge(retval, {element2: 1})  # Ugly, but handles element1 == element2 in one line.
+        return retval
+
+    count = {}
+    new_element = rules[(element1, element2)]
+
+    merge(count, calculate(element1, new_element, depth - 1))
+    merge(count, calculate(new_element, element2, depth - 1))
+    merge(count, {new_element: -1})  # correct for double-counting new_element.
+
+    cache[(element1, element2, depth)] = count
+    return count
 
 with open('day14/input.txt', 'r') as f:
     sequence = f.readline().strip()
-    head = Node(sequence[0])
-    pointer = head
-    for i in range(1, len(sequence)):
-        node = Node(sequence[i])
-        pointer.next = node
-        pointer = node
 
     _ = f.readline()  # empty line
 
     rules = {(pair[0],pair[1]):new_element for [pair, new_element] in [re.split(' -> ', line.strip()) for line in f.readlines()]}
 
-    # Apply the expansion rules.
-    for i in range(40):
-        size = 0
-        pointer = head
-        next = pointer.next
-        while next != None:
-            pair = (pointer.value, next.value)
-            if pair in rules:
-                new_element = Node(rules[pair])
-                pointer.next = new_element
-                new_element.next = next
-
-            pointer = next
-            next = pointer.next
-            size += 1
-        print(f'{i}, {size}')
-
-    # Count the elements in the sequence
     count = {}
-    pointer = head
-    while pointer != None:
-        count[pointer.value] = count.get(pointer.value, 0) + 1
-        pointer = pointer.next
+    depth = 40
+    for i in range(0, len(sequence) - 1):
+        merge(count, calculate(sequence[i], sequence[i+1], depth))
+
+    # Correct for double-counted internal values:
+    for i in range(1, len(sequence) - 1):
+        merge(count, {sequence[i]: -1})
 
     # And the answer is the max vs the min.
     max_element = max(count, key=count.get)
